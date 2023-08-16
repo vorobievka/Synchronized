@@ -7,6 +7,24 @@ public class Main {
         Character r = 'R';
         List<Thread> threads = new ArrayList<Thread>();
 
+        Runnable searchMax = () -> {
+            while (!Thread.interrupted()) {
+                try {
+                    synchronized (sizeToFreq) {
+                        sizeToFreq.wait();
+                    }
+                } catch (InterruptedException e) {
+                    throw new RuntimeException("Печатающий поток остановлен");
+                }
+                Integer key = Collections.max(sizeToFreq.entrySet(), Map.Entry.comparingByValue()).getKey();
+                System.out.println("Самое частое количество повторений " + key + " (встретилось " + sizeToFreq.get(key) + " раз)");
+            }
+
+        };
+
+        Thread threadForSearchMax = new Thread(searchMax);
+        threadForSearchMax.start();
+
         for (int j = 0; j < 1000; j++) {
             String result = generateRoute("RLRFR", 100);
             Runnable logic = () -> {
@@ -19,8 +37,10 @@ public class Main {
                 synchronized (sizeToFreq) {
                     if (sizeToFreq.get(count) != null) {
                         sizeToFreq.put(count, sizeToFreq.get(count) + 1);
+                        sizeToFreq.notify();
                     } else {
                         sizeToFreq.put(count, 1);
+                        sizeToFreq.notify();
                     }
                 }
             };
@@ -34,13 +54,7 @@ public class Main {
         for (Thread threading : threads) {
             threading.join();
         }
-
-        Integer key = Collections.max(sizeToFreq.entrySet(), Map.Entry.comparingByValue()).getKey();
-        System.out.println("Самое частое количество повторений " + key + " (встретилось " + sizeToFreq.get(key) + " раз)");
-        System.out.println("Другие размеры:");
-        sizeToFreq.entrySet().stream().filter(e -> e.getKey() != key).forEach(e -> {
-            System.out.println(" - " + e.getKey() + " ( " + e.getValue() + " раз)");
-        });
+        threadForSearchMax.interrupt();
 
     }
 
